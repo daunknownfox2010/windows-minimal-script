@@ -8,3 +8,7 @@ How do you use it? Well, it's actually rather straightforward! You'll have to ag
 * Double-click the script file, it'll come up with a UAC prompt, click *Yes*.
 * Once you've done that, a Command Prompt window will open with some red text on the screen, type *'I understand'*.
 * You'll now have a blue interactive menu. Use the numbers to navigate around and select the environment you want.
+
+## Precaution
+Disabling DWM will result in Windows being unstable, along with anything that relies on it. This includes UWP applications.
+You may also find Chromium and anything based off it will no longer render either.
