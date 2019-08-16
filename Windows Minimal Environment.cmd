@@ -1,5 +1,7 @@
 @ECHO OFF
 
+REM -- Elevate permissions here --
+
 NET SESSION >NUL 2>&1
 IF "%ERRORLEVEL%" == "0" (GOTO WARNING) ELSE (GOTO ELEVATEPERM)
 
@@ -11,99 +13,54 @@ ECHO Your system doesn't have PowerShell installed.
 )
 GOTO EOFNOCLS
 
-:ENABLEDWM
-TAKEOWN /F "%SystemRoot%\System32\dwminit.dll.d" /A
-ICACLS "%SystemRoot%\System32\dwminit.dll.d" /GRANT:R *S-1-5-32-544:(F) /C
-REN "%SystemRoot%\System32\dwminit.dll.d" "dwminit.dll"
-ICACLS "%SystemRoot%\System32\dwminit.dll" /SETOWNER *S-1-5-80-956008885-3418522649-1831038044-1853292631-2271478464 /C
-ICACLS "%SystemRoot%\System32" /RESTORE "%SystemRoot%\System32\dwminit.dll.acls" /C
-DEL /Q "%SystemRoot%\System32\dwminit.dll.acls"
+REM -- The real functions are all under here --
+
+:ENABLEDLL
+IF NOT EXIST "%SystemRoot%\System32\%~1.d" (EXIT /B)
+TAKEOWN /F "%SystemRoot%\System32\%~1.d" /A
+ICACLS "%SystemRoot%\System32\%~1.d" /GRANT:R *S-1-5-32-544:(F) /C
+REN "%SystemRoot%\System32\%~1.d" "%~1"
+ICACLS "%SystemRoot%\System32\%~1" /SETOWNER *S-1-5-80-956008885-3418522649-1831038044-1853292631-2271478464 /C
+IF NOT EXIST "%SystemRoot%\System32\%~1.acls" (EXIT /B)
+ICACLS "%SystemRoot%\System32" /RESTORE "%SystemRoot%\System32\%~1.acls" /C
+DEL /Q "%SystemRoot%\System32\%~1.acls"
 EXIT /B
 
-:DISABLEDWM
-ICACLS "%SystemRoot%\System32\dwminit.dll" /SAVE "%SystemRoot%\System32\dwminit.dll.acls" /C
-TAKEOWN /F "%SystemRoot%\System32\dwminit.dll" /A
-ICACLS "%SystemRoot%\System32\dwminit.dll" /GRANT:R *S-1-5-32-544:(F) /C
-REN "%SystemRoot%\System32\dwminit.dll" "dwminit.dll.d"
-ICACLS "%SystemRoot%\System32\dwminit.dll.d" /SETOWNER *S-1-5-80-956008885-3418522649-1831038044-1853292631-2271478464 /C
-ICACLS "%SystemRoot%\System32\dwminit.dll.d" /GRANT:R *S-1-5-32-544:(RX) /C
+:DISABLEDLL
+IF NOT EXIST "%SystemRoot%\System32\%~1" (EXIT /B)
+ICACLS "%SystemRoot%\System32\%~1" /SAVE "%SystemRoot%\System32\%~1.acls" /C
+TAKEOWN /F "%SystemRoot%\System32\%~1" /A
+ICACLS "%SystemRoot%\System32\%~1" /GRANT:R *S-1-5-32-544:(F) /C
+REN "%SystemRoot%\System32\%~1" "%~1.d"
+ICACLS "%SystemRoot%\System32\%~1.d" /SETOWNER *S-1-5-80-956008885-3418522649-1831038044-1853292631-2271478464 /C
+ICACLS "%SystemRoot%\System32\%~1.d" /GRANT:R *S-1-5-32-544:(RX) /C
 EXIT /B
 
-:ENABLELOGONUI
-TAKEOWN /F "%SystemRoot%\System32\Windows.UI.Logon.dll.d" /A
-ICACLS "%SystemRoot%\System32\Windows.UI.Logon.dll.d" /GRANT:R *S-1-5-32-544:(F) /C
-REN "%SystemRoot%\System32\Windows.UI.Logon.dll.d" "Windows.UI.Logon.dll"
-ICACLS "%SystemRoot%\System32\Windows.UI.Logon.dll" /SETOWNER *S-1-5-80-956008885-3418522649-1831038044-1853292631-2271478464 /C
-ICACLS "%SystemRoot%\System32" /RESTORE "%SystemRoot%\System32\Windows.UI.Logon.dll.acls" /C
-DEL /Q "%SystemRoot%\System32\Windows.UI.Logon.dll.acls"
-EXIT /B
-
-:DISABLELOGONUI
-ICACLS "%SystemRoot%\System32\Windows.UI.Logon.dll" /SAVE "%SystemRoot%\System32\Windows.UI.Logon.dll.acls" /C
-TAKEOWN /F "%SystemRoot%\System32\Windows.UI.Logon.dll" /A
-ICACLS "%SystemRoot%\System32\Windows.UI.Logon.dll" /GRANT:R *S-1-5-32-544:(F) /C
-REN "%SystemRoot%\System32\Windows.UI.Logon.dll" "Windows.UI.Logon.dll.d"
-ICACLS "%SystemRoot%\System32\Windows.UI.Logon.dll.d" /SETOWNER *S-1-5-80-956008885-3418522649-1831038044-1853292631-2271478464 /C
-ICACLS "%SystemRoot%\System32\Windows.UI.Logon.dll.d" /GRANT:R *S-1-5-32-544:(RX) /C
-EXIT /B
-
-:MINIMAL0
-CLS
-COLOR 0F
-ECHO Converting to Minimal Environment (With DWM)...
-ECHO ========================================================================================================================
-IF EXIST "%SystemRoot%\System32\dwminit.dll.d" (CALL :ENABLEDWM)
-IF EXIST "%SystemRoot%\System32\Windows.UI.Logon.dll" (CALL :DISABLELOGONUI)
+:SETCMDSHELL
+IF "%~1" == "1" (
 REG ADD "HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon" /F /V Shell /T REG_SZ /D "cmd.exe /C \"cd /D \"%%USERPROFILE%%\" ^& start cmd.exe /K runonce.exe /AlternateShellStartup\""
-ECHO ========================================================================================================================
-ECHO.
-ECHO Finished! Don't forget to restart your session for the changes to apply.
-PAUSE
-GOTO MENU0
-
-:MINIMAL1
-CLS
-COLOR 0F
-ECHO Converting to Minimal Environment (Without DWM)...
-ECHO ========================================================================================================================
-IF EXIST "%SystemRoot%\System32\dwminit.dll" (CALL :DISABLEDWM)
-IF EXIST "%SystemRoot%\System32\Windows.UI.Logon.dll" (CALL :DISABLELOGONUI)
-REG ADD "HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon" /F /V Shell /T REG_SZ /D "cmd.exe /C \"cd /D \"%%USERPROFILE%%\" ^& start cmd.exe /K runonce.exe /AlternateShellStartup\""
-ECHO ========================================================================================================================
-ECHO.
-ECHO Finished! Don't forget to restart your session for the changes to apply.
-PAUSE
-GOTO MENU0
-
-:NORMAL0
-CLS
-COLOR 0F
-ECHO Converting to Normal Environment (Graphical LogonUI)...
-ECHO ========================================================================================================================
-IF EXIST "%SystemRoot%\System32\dwminit.dll.d" (CALL :ENABLEDWM)
-IF EXIST "%SystemRoot%\System32\Windows.UI.Logon.dll.d" (CALL :ENABLELOGONUI)
+) ELSE (
 REG ADD "HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon" /F /V Shell /T REG_SZ /D "explorer.exe"
-ECHO ========================================================================================================================
-ECHO.
-ECHO Finished! Don't forget to restart your session for the changes to apply.
-PAUSE
-GOTO MENU0
+)
+EXIT /B
 
-:NORMAL1
+:CONVERTENV
 CLS
-COLOR 0F
-ECHO Converting to Normal Environment (Console LogonUI)...
+COLOR 07
+ECHO %~1
 ECHO ========================================================================================================================
-IF EXIST "%SystemRoot%\System32\dwminit.dll.d" (CALL :ENABLEDWM)
-IF EXIST "%SystemRoot%\System32\Windows.UI.Logon.dll" (CALL :DISABLELOGONUI)
-REG ADD "HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon" /F /V Shell /T REG_SZ /D "explorer.exe"
+CALL %~2 "%~3"
+CALL %~4 "%~5"
+CALL :SETCMDSHELL "%~6"
 ECHO ========================================================================================================================
 ECHO.
 ECHO Finished! Don't forget to restart your session for the changes to apply.
-PAUSE
-GOTO MENU0
+SET MUTEINVALID=1
+EXIT /B
 
-:MENU0
+REM -- Menu related functions --
+
+:DISPLAYMENUHEADER
 CLS
 COLOR 1F
 ECHO  +-------------------------------------------------------------------------+
@@ -112,75 +69,85 @@ ECHO  ^| This script allows you to use a more minimal shell instead of Explorer.
 ECHO  +-------------------------------------------------------------------------+
 ECHO.
 ECHO.
+EXIT /B
+
+:DISPLAYINVALID
+IF "%MUTEINVALID%" == "1" (EXIT /B)
+ECHO Invalid selection!
+ECHO.
+EXIT /B
+
+:USERCHOICEPOPUP
+SET MUTEINVALID=
+SET USERCHOICE=
+SET /P USERCHOICE=Select: 
+EXIT /B
+
+REM -- Each individual menu and the available options to be processed --
+
+:MENU0
+CALL :DISPLAYMENUHEADER
 ECHO  Main Menu:
 ECHO  1^> Minimal Environment
 ECHO  2^> Normal Environment
 ECHO  3^> [Exit]
 ECHO.
-SET USERCHOICE=
-SET /P USERCHOICE=Select: 
+CALL :USERCHOICEPOPUP
 GOTO PROCESS0
 
 :MENU1
-CLS
-ECHO  +-------------------------------------------------------------------------+
-ECHO  ^|      Welcome to the Windows Minimal Environment conversion script.      ^|
-ECHO  ^| This script allows you to use a more minimal shell instead of Explorer. ^|
-ECHO  +-------------------------------------------------------------------------+
-ECHO.
-ECHO.
+CALL :DISPLAYMENUHEADER
 ECHO  Minimal Environment:
 ECHO  1^> With DWM
 ECHO  2^> Without DWM (Unstable)
 ECHO  3^> [Return]
 ECHO.
-SET USERCHOICE=
-SET /P USERCHOICE=Select: 
+CALL :USERCHOICEPOPUP
 GOTO PROCESS1
 
 :MENU2
-CLS
-ECHO  +-------------------------------------------------------------------------+
-ECHO  ^|      Welcome to the Windows Minimal Environment conversion script.      ^|
-ECHO  ^| This script allows you to use a more minimal shell instead of Explorer. ^|
-ECHO  +-------------------------------------------------------------------------+
-ECHO.
-ECHO.
+CALL :DISPLAYMENUHEADER
 ECHO  Normal Environment:
 ECHO  1^> Graphical LogonUI (Windows Default)
 ECHO  2^> Console LogonUI
 ECHO  3^> [Return]
 ECHO.
-SET USERCHOICE=
-SET /P USERCHOICE=Select: 
+CALL :USERCHOICEPOPUP
 GOTO PROCESS2
 
 :PROCESS0
 IF "%USERCHOICE%" == "1" (GOTO MENU1)
 IF "%USERCHOICE%" == "2" (GOTO MENU2)
 IF "%USERCHOICE%" == "3" (GOTO EOF)
-ECHO Invalid selection!
-ECHO.
+CALL :DISPLAYINVALID
 PAUSE
 GOTO MENU0
 
 :PROCESS1
-IF "%USERCHOICE%" == "1" (GOTO MINIMAL0)
-IF "%USERCHOICE%" == "2" (GOTO MINIMAL1)
+IF "%USERCHOICE%" == "1" (
+CALL :CONVERTENV "Converting to Minimal Environment (With DWM)..." ":ENABLEDLL" "dwminit.dll" ":DISABLEDLL" "Windows.UI.Logon.dll" "1"
+)
+IF "%USERCHOICE%" == "2" (
+CALL :CONVERTENV "Converting to Minimal Environment (Without DWM)..." ":DISABLEDLL" "dwminit.dll" ":DISABLEDLL" "Windows.UI.Logon.dll" "1"
+)
 IF "%USERCHOICE%" == "3" (GOTO MENU0)
-ECHO Invalid selection!
-ECHO.
+CALL :DISPLAYINVALID
 PAUSE
 GOTO MENU1
 
 :PROCESS2
-IF "%USERCHOICE%" == "1" (GOTO NORMAL0)
-IF "%USERCHOICE%" == "2" (GOTO NORMAL1)
+IF "%USERCHOICE%" == "1" (
+CALL :CONVERTENV "Converting to Normal Environment (Graphical LogonUI)..." ":ENABLEDLL" "dwminit.dll" ":ENABLEDLL" "Windows.UI.Logon.dll" "0"
+)
+IF "%USERCHOICE%" == "2" (
+CALL :CONVERTENV "Converting to Normal Environment (Console LogonUI)..." ":ENABLEDLL" "dwminit.dll" ":DISABLEDLL" "Windows.UI.Logon.dll" "0"
+)
 IF "%USERCHOICE%" == "3" (GOTO MENU0)
-ECHO Invalid selection!
-ECHO.
+CALL :DISPLAYINVALID
 PAUSE
 GOTO MENU2
+
+REM -- Bring up a warning menu before the main menu --
 
 :WARNING
 CLS
@@ -191,14 +158,16 @@ ECHO  ^| If your Windows system no longer functions correctly after using this s
 ECHO  +-----------------------------------------------------------------------------------------------+
 ECHO.
 ECHO.
-SET USERCHOICE=
-SET /P USERCHOICE="Type 'I understand' to continue or anything else to quit: "
+SET /P USERCHOICE=Type 'I understand' to continue or anything else to quit: 
 IF /I "%USERCHOICE%" == "i understand" (GOTO MENU0)
 GOTO EOF
 
+REM -- End-of-File stuff --
+
 :EOF
 CLS
-@ECHO ON
 
 :EOFNOCLS
+SET MUTEINVALID=
+SET USERCHOICE=
 @ECHO ON
